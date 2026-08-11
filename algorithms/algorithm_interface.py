@@ -19,9 +19,6 @@ class Algorithm(ABC):
     def _execute(self, p:Parameters) -> Result:
         """Execute the algorithm"""
 
-    def run(self, p:Parameters):
-        try:
-            self._validate(p)
-            return self._execute(p)
-        except Exception as exc:
-            print(exc)
+    def run(self, p:Parameters) -> Result:
+        self._validate(p)
+        return self._execute(p)

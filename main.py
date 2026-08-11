@@ -8,19 +8,23 @@ def _prompt_field(field: dataclasses.Field):
     has_default = field.default is not dataclasses.MISSING
     label = field.name if not has_default else f"{field.name} [{field.default}]"
 
-    if field.type is callable:
-        raw = input(f"{label} (expression in x, e.g. x**2 - 2): ").strip()
-        return eval(f"lambda x: {raw}", {"math": math})
+    while True:
+        try:
+            if field.type is callable:
+                raw = input(f"{label} (expression in x, e.g. x**2 - 2): ").strip()
+                return eval(f"lambda x: {raw}", {"math": math})
 
-    raw = input(f"{label}: ").strip()
-    if raw == "" and has_default:
-        return field.default
+            raw = input(f"{label}: ").strip()
+            if raw == "" and has_default:
+                return field.default
 
-    if field.type is float:
-        return float(raw)
-    if field.type is int:
-        return int(raw)
-    return raw
+            if field.type is float:
+                return float(raw)
+            if field.type is int:
+                return int(raw)
+            return raw
+        except (ValueError, SyntaxError, NameError):
+            print("Invalid value, please try again.")
 
 
 def prompt_for_params(params_cls):
@@ -34,10 +38,16 @@ def choose_algorithm(entries: list[AlgorithmEntry]) -> AlgorithmEntry | None:
         print(f"  {i}. {entry.name} - {entry.description}")
     print("  0. Exit")
 
-    choice = int(input("Select an algorithm: "))
-    if choice == 0:
-        return None
-    return entries[choice - 1]
+    while True:
+        try:
+            choice = int(input("Select an algorithm: "))
+            if choice == 0:
+                return None
+            if choice < 0:
+                raise IndexError
+            return entries[choice - 1]
+        except (ValueError, IndexError):
+            print("Invalid option, please try again.")
 
 
 def main():
@@ -53,8 +63,11 @@ def main():
 
         params = prompt_for_params(entry.params_cls)
         algorithm = entry.algorithm_cls()
-        result = algorithm.run(params)
-        print(result)
+        try:
+            result = algorithm.run(params)
+            print(result)
+        except Exception as exc:
+            print(f"Error: {exc}")
         print()
 
 
