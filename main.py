@@ -1,7 +1,8 @@
 import dataclasses
 
-from algorithms.registry import AlgorithmEntry, AlgorithmRegistry
-from algorithms.symbolic import ExpressionType
+import algorithms  # noqa: F401 - side-effecting import that registers all algorithms
+from registry import AlgorithmEntry, AlgorithmRegistry
+from symbolic import ExpressionType
 
 
 def _prompt_field(field: dataclasses.Field):

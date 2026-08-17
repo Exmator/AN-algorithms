@@ -2,9 +2,9 @@ from dataclasses import dataclass
 
 import sympy as sp
 
-from algorithms.algorithm_interface import Parameters, Result, Algorithm
-from algorithms.registry import AlgorithmRegistry
-from algorithms.symbolic import (
+from algorithm_interface import Parameters, Result, Algorithm
+from registry import AlgorithmRegistry
+from symbolic import (
     ExpressionType,
     X,
     exact_bounds,

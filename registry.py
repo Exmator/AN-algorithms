@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Type
 
-from algorithms.algorithm_interface import Algorithm, Parameters
+from algorithm_interface import Algorithm, Parameters
 
 
 @dataclass(frozen=True)
