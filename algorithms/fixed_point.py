@@ -4,10 +4,19 @@ import sympy as sp
 
 from algorithms.algorithm_interface import Parameters, Result, Algorithm
 from algorithms.registry import AlgorithmRegistry
+from algorithms.symbolic import (
+    ExpressionType,
+    X,
+    exact_bounds,
+    function_range,
+    parse_univariate_expression,
+    require_continuous,
+    to_numeric_function,
+)
 
 @dataclass
 class FixedPointParams(Parameters):
-    f: sp.Expr | str
+    f: ExpressionType
     p0: float
     a: float
     b: float
@@ -43,47 +52,27 @@ class FixedPointAlgorithm(Algorithm):
         if p.max_iter <= 0:
             raise ValueError("max_iter must be positive")
 
-        try:
-            f = sp.sympify(p.f)
-        except (sp.SympifyError, TypeError) as exc:
-            raise ValueError("f must be a valid sympy expression") from exc
-        if f.free_symbols - {sp.Symbol("x")}:
-            raise ValueError("f must only be expressed in terms of the variable x")
+        f = parse_univariate_expression(p.f)
+        g = X - f
 
-        g = sp.Symbol("x") - f
-
-        # Use exact rationals instead of the raw floats: sympy's containment
-        # checks on Float-bounded intervals can be undecidable (return None)
-        # due to limited precision, which `not None` would misread as False.
-        a_exact = sp.Rational(str(p.a))
-        b_exact = sp.Rational(str(p.b))
+        a_exact, b_exact = exact_bounds(p.a, p.b)
         closed_interval = sp.Interval(a_exact, b_exact)
         open_interval = sp.Interval.open(a_exact, b_exact)
 
         # Existence: g continuous on [a, b] and g([a, b]) subseteq [a, b]
-        try:
-            domain = sp.calculus.util.continuous_domain(g, sp.Symbol("x"), closed_interval)
-            if not closed_interval.is_subset(domain):
-                raise ValueError("g is not continuous on [a, b]")
-
-            g_range = sp.calculus.util.function_range(g, sp.Symbol("x"), closed_interval)
-        except NotImplementedError as exc:
-            raise ValueError("cannot determine whether g is continuous on [a, b] for the given f") from exc
+        require_continuous(g, closed_interval, subject="g", interval_label="[a, b]", context="f")
+        g_range = function_range(g, closed_interval, subject="g", interval_label="[a, b]", context="f")
         if not g_range.is_subset(closed_interval):
             raise ValueError(
                 f"g([a, b]) = {g_range} is not contained in [a, b]: existence of a fixed point is not guaranteed"
             )
 
         # Uniqueness/convergence: g differentiable on (a, b) with sup|g'| < 1
-        dg = sp.diff(g, sp.Symbol("x"))
-        try:
-            dg_domain = sp.calculus.util.continuous_domain(dg, sp.Symbol("x"), open_interval)
-            if not open_interval.is_subset(dg_domain):
-                raise ValueError("g is not differentiable on (a, b)")
-
-            dg_range = sp.calculus.util.function_range(dg, sp.Symbol("x"), open_interval)
-        except NotImplementedError as exc:
-            raise ValueError("cannot determine whether g is differentiable on (a, b) for the given f") from exc
+        dg = sp.diff(g, X)
+        require_continuous(
+            dg, open_interval, subject="g", interval_label="(a, b)", property_name="differentiable", context="f"
+        )
+        dg_range = function_range(dg, open_interval, subject="g", interval_label="(a, b)", context="f")
         k = sp.Max(sp.Abs(dg_range.inf), sp.Abs(dg_range.sup))
         if k >= 1:
             raise ValueError(
@@ -92,9 +81,9 @@ class FixedPointAlgorithm(Algorithm):
             )
 
     def _execute(self, p: FixedPointParams) -> FixedPointResult:
-        f = sp.sympify(p.f)
-        g = sp.Symbol("x") - f
-        g_func = sp.lambdify(sp.Symbol("x"), g, "math")
+        f = parse_univariate_expression(p.f)
+        g = X - f
+        g_func = to_numeric_function(g)
 
         p_curr = p.p0
         for i in range(p.max_iter):

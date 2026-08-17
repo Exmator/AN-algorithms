@@ -1,7 +1,7 @@
 import dataclasses
-import math
 
 from algorithms.registry import AlgorithmEntry, AlgorithmRegistry
+from algorithms.symbolic import ExpressionType
 
 
 def _prompt_field(field: dataclasses.Field):
@@ -10,9 +10,8 @@ def _prompt_field(field: dataclasses.Field):
 
     while True:
         try:
-            if field.type is callable:
-                raw = input(f"{label} (expression in x, e.g. x**2 - 2): ").strip()
-                return eval(f"lambda x: {raw}", {"math": math})
+            if field.type == ExpressionType:
+                return input(f"{label} (expression in x, e.g. x**2 - 2): ").strip()
 
             raw = input(f"{label}: ").strip()
             if raw == "" and has_default:
