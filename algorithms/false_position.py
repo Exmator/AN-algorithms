@@ -1,0 +1,80 @@
+from dataclasses import dataclass
+
+import sympy as sp
+
+from algorithm_interface import Parameters, Result, Algorithm
+from registry import AlgorithmRegistry
+from symbolic import (
+    ExpressionType,
+    exact_bounds,
+    parse_univariate_expression,
+    require_continuous,
+    to_numeric_function,
+)
+
+@dataclass
+class FalsePositionParams(Parameters):
+    f: ExpressionType
+    a: float
+    b: float
+    tol: float = 1e-6
+    max_iter: int = 100
+
+@dataclass
+class FalsePositionResult(Result):
+    root: float
+    iterations: int
+    converged: bool
+
+    def __str__(self) -> str:
+        if self.converged:
+            return f"Root found: {self.root:.6f} (after {self.iterations} iterations)"
+        return f"Did not converge after {self.iterations} iterations (last estimate: {self.root:.6f})"
+
+@AlgorithmRegistry.register(
+    name="False Position",
+    params_cls=FalsePositionParams,
+    description="False Position method to find the root of f in [a, b]",
+)
+class FalsePositionAlgorithm(Algorithm):
+    def _validate(self, p: FalsePositionParams) -> None:
+        if not isinstance(p, FalsePositionParams):
+            raise TypeError("parameters must be a FalsePositionParams instance")
+        if p.a >= p.b:
+            raise ValueError("a must be less than b")
+        if p.tol <= 0:
+            raise ValueError("tol must be positive")
+        if p.max_iter <= 0:
+            raise ValueError("max_iter must be positive")
+
+        f = parse_univariate_expression(p.f)
+
+        a_exact, b_exact = exact_bounds(p.a, p.b)
+        closed_interval = sp.Interval(a_exact, b_exact)
+
+        # Intermediate Value Theorem hypothesis: f continuous on [a, b]
+        require_continuous(f, closed_interval, subject="f", interval_label="[a, b]")
+
+        f_func = to_numeric_function(f)
+        if f_func(p.a) * f_func(p.b) >= 0:
+            raise ValueError("f(a) and f(b) must have opposite signs")
+
+    def _execute(self, p: FalsePositionParams) -> FalsePositionResult:
+        f_func = to_numeric_function(parse_univariate_expression(p.f))
+
+        a = p.a
+        b = p.b
+
+        for i in range(p.max_iter):
+            Fa = f_func(a)
+            Fb = f_func(b)
+            x = (a*Fb-b*Fa)/(Fb-Fa)
+            Fx = f_func(x)
+            if abs(Fx) < p.tol:
+                return FalsePositionResult(root=x, iterations=i + 1, converged=True)
+            if Fa * Fx < 0:
+                b = x
+            else:
+                a = x
+
+        return FalsePositionResult(root=x, iterations=p.max_iter, converged=False)

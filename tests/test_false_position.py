@@ -1,0 +1,109 @@
+import math
+
+import pytest
+import sympy as sp
+
+from algorithms.false_position import FalsePositionAlgorithm, FalsePositionParams
+
+x = sp.Symbol("x")
+y = sp.Symbol("y")
+
+
+@pytest.fixture
+def algorithm():
+    return FalsePositionAlgorithm()
+
+
+def test_validate_raises_on_wrong_parameters_type(algorithm):
+    with pytest.raises(TypeError, match="FalsePositionParams"):
+        algorithm._validate(object())
+
+
+def test_validate_raises_when_a_is_not_less_than_b(algorithm):
+    params = FalsePositionParams(f=x, a=1, b=1)
+    with pytest.raises(ValueError, match="a must be less than b"):
+        algorithm._validate(params)
+
+
+def test_validate_raises_when_tol_is_not_positive(algorithm):
+    params = FalsePositionParams(f=x - 0.5, a=0, b=1, tol=0)
+    with pytest.raises(ValueError, match="tol must be positive"):
+        algorithm._validate(params)
+
+
+def test_validate_raises_when_max_iter_is_not_positive(algorithm):
+    params = FalsePositionParams(f=x - 0.5, a=0, b=1, max_iter=0)
+    with pytest.raises(ValueError, match="max_iter must be positive"):
+        algorithm._validate(params)
+
+
+def test_validate_raises_when_f_is_not_a_valid_expression(algorithm):
+    params = FalsePositionParams(f="not a math expr $$", a=0, b=1)
+    with pytest.raises(ValueError, match="f must be a valid sympy expression"):
+        algorithm._validate(params)
+
+
+def test_validate_raises_when_f_uses_a_variable_other_than_x(algorithm):
+    params = FalsePositionParams(f=y - 0.5, a=0, b=1)
+    with pytest.raises(ValueError, match="only be expressed in terms of the variable x"):
+        algorithm._validate(params)
+
+
+def test_validate_raises_when_f_is_not_continuous_on_interval(algorithm):
+    params = FalsePositionParams(f=1 / (x - 1), a=0, b=2)
+    with pytest.raises(ValueError, match="not continuous"):
+        algorithm._validate(params)
+
+
+def test_validate_raises_when_signs_do_not_change(algorithm):
+    params = FalsePositionParams(f=x**2 + 1, a=-1, b=1)
+    with pytest.raises(ValueError, match="opposite signs"):
+        algorithm._validate(params)
+
+
+def test_execute_does_not_converge_with_too_few_iterations(algorithm):
+    params = FalsePositionParams(f=x**2 - 2, a=0, b=2, tol=1e-12, max_iter=1)
+    result = algorithm.run(params)
+
+    assert result.converged is False
+    assert result.iterations == 1
+
+
+def test_execute_converges_fast_with_a_loose_tolerance(algorithm):
+    params = FalsePositionParams(f=x**2 - 2, a=0, b=2, tol=0.5, max_iter=100)
+    result = algorithm.run(params)
+
+    assert result.converged is True
+    assert result.iterations < 5
+
+
+def test_execute_does_not_converge_with_an_unreachable_tolerance(algorithm):
+    params = FalsePositionParams(f=x**2 - 2, a=0, b=2, tol=1e-300, max_iter=100)
+    result = algorithm.run(params)
+
+    assert result.converged is False
+    assert result.iterations == 100
+
+
+def test_execute_converges_to_root_for_polynomial_f(algorithm):
+    params = FalsePositionParams(f=x**2 - 2, a=0, b=2, tol=1e-8, max_iter=100)
+    result = algorithm.run(params)
+
+    assert result.converged is True
+    assert math.isclose(result.root, math.sqrt(2), abs_tol=1e-6)
+
+
+def test_execute_converges_to_root_for_transcendental_f(algorithm):
+    params = FalsePositionParams(f=sp.cos(x) - x, a=0, b=1, tol=1e-8, max_iter=100)
+    result = algorithm.run(params)
+
+    assert result.converged is True
+    assert math.isclose(result.root, 0.7390851332151607, abs_tol=1e-6)
+
+
+def test_execute_converges_to_root_for_exponential_f(algorithm):
+    params = FalsePositionParams(f=sp.exp(x) - 3 * x, a=0, b=1, tol=1e-8, max_iter=100)
+    result = algorithm.run(params)
+
+    assert result.converged is True
+    assert math.isclose(result.root, 0.6190612867359450, abs_tol=1e-6)
