@@ -19,10 +19,16 @@ AN-algorithms/
 ├── algorithms/
 │   ├── __init__.py               # auto-discovers and registers every algorithm module
 │   ├── bisection.py              # Bisection method implementation
-│   └── fixed_point.py            # Fixed Point method implementation
+│   ├── false_position.py         # False Position method implementation
+│   ├── fixed_point.py            # Fixed Point method implementation
+│   ├── newton.py                 # Newton-Raphson method implementation
+│   └── secant.py                 # Secant method implementation
 └── tests/
     ├── test_bisection.py
-    └── test_fixed_point.py
+    ├── test_false_position.py
+    ├── test_fixed_point.py
+    ├── test_newton.py
+    └── test_secant.py
 ```
 
 ### How it fits together
