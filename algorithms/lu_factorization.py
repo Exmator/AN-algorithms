@@ -91,7 +91,8 @@ class LUFactorizationAlgorithm(Algorithm):
             for j in range(i + 1, n):
                 multiplier = upper[j][i] / pivot
                 lower[j][i] = multiplier
-                for k in range(i, n):
+                upper[j][i] = 0.0
+                for k in range(i + 1, n):
                     upper[j][k] -= multiplier * upper[i][k]
 
         return LUFactorizationResult(L=lower, U=upper)
